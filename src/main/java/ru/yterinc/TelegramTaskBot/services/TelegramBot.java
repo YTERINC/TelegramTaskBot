@@ -2,13 +2,17 @@ package ru.yterinc.TelegramTaskBot.services;
 
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.yterinc.TelegramTaskBot.config.BotConfig;
 import ru.yterinc.TelegramTaskBot.models.Task;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,12 +24,21 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final Map<Long, String> userStates = new HashMap<>();
     private final Map<Long, Task> tempTasks = new ConcurrentHashMap<>();
 
+
     final BotConfig config;
 
     public TelegramBot(TaskService taskService, BotConfig config) {
         super(config.getToken());
         this.taskService = taskService;
         this.config = config;
+        List<BotCommand> listOfCommands = new ArrayList<>();
+        listOfCommands.add(new BotCommand("/start", "Помощь"));
+        listOfCommands.add(new BotCommand("/add", "Добавить задачу"));
+        listOfCommands.add(new BotCommand("/list", "Список задач"));
+        try {
+            this.execute(new SetMyCommands(listOfCommands, new BotCommandScopeDefault(), null));
+        } catch (TelegramApiException e) {
+        }
     }
 
     @Override
