@@ -4,10 +4,14 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.yterinc.TelegramTaskBot.config.BotConfig;
 import ru.yterinc.TelegramTaskBot.models.Task;
@@ -48,6 +52,10 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+        if (update.hasCallbackQuery()) {
+            handleCallback(update.getCallbackQuery());
+            return;
+        }
         if (update.hasMessage() && update.getMessage().hasText()) {
             Message message = update.getMessage();
             Long chatId = message.getChatId();
@@ -85,6 +93,16 @@ public class TelegramBot extends TelegramLongPollingBot {
                 break;
             default:
                 sendMessage(chatId, "Неизвестная команда");
+        }
+    }
+
+    private void handleCallback(CallbackQuery callbackQuery) {
+        Long chatId = callbackQuery.getMessage().getChatId();
+        String data = callbackQuery.getData();
+
+        if (data.startsWith("delete_")) {
+            long taskId = Long.parseLong(data.split("_")[1]);
+            deleteTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
         }
     }
 
@@ -171,9 +189,41 @@ public class TelegramBot extends TelegramLongPollingBot {
         tempTasks.remove(chatId);
     }
 
+    //    private void listTasks(Long chatId) {
+//        try {
+//            // Получаем задачи только текущего пользователя
+//            List<Task> userTasks = taskService.findAll(chatId);
+//
+//            if (userTasks.isEmpty()) {
+//                sendMessage(chatId, "Список задач пуст.");
+//                return;
+//            }
+//
+//            // Формируем красивое текстовое представление
+//            StringBuilder response = new StringBuilder("📝 Ваши задачи:\n\n");
+//            for (Task task : userTasks) {
+//                response.append(String.format(
+//                        "🆔 ID: %d\n📌 Название: %s\n📄 Описание: %s\n✅ Статус: %s\n\n",
+//                        task.getId(),
+//                        task.getTitle(),
+//                        task.getDescription(),
+//                        task.isCompleted() ? "Завершено" : "Активно"
+//                ));
+//            }
+//
+//            // Добавляем подсказку по управлению
+//            response.append("Используйте /delete [ID] для удаления");
+//
+//            sendMessage(chatId, response.toString());
+//
+//        } catch (Exception e) {
+//            sendMessage(chatId, "❌ Ошибка при получении задач: " + e.getMessage());
+//            // Логирование ошибки
+//            e.printStackTrace();
+//        }
+//    }
     private void listTasks(Long chatId) {
         try {
-            // Получаем задачи только текущего пользователя
             List<Task> userTasks = taskService.findAll(chatId);
 
             if (userTasks.isEmpty()) {
@@ -181,27 +231,69 @@ public class TelegramBot extends TelegramLongPollingBot {
                 return;
             }
 
-            // Формируем красивое текстовое представление
-            StringBuilder response = new StringBuilder("📝 Ваши задачи:\n\n");
+
+
             for (Task task : userTasks) {
-                response.append(String.format(
+                // Создаем строку с текстом задачи и кнопкой
+                InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                List<InlineKeyboardButton> row = new ArrayList<>();
+
+                // Текст задачи
+                String taskText = String.format(
                         "🆔 ID: %d\n📌 Название: %s\n📄 Описание: %s\n✅ Статус: %s\n\n",
                         task.getId(),
                         task.getTitle(),
                         task.getDescription(),
-                        task.isCompleted() ? "Завершено" : "Активно"
-                ));
+                        task.isCompleted() ? "✅ Завершено" : "🔄 Активно"
+                );
+
+                // Кнопка удаления
+                InlineKeyboardButton deleteButton = new InlineKeyboardButton();
+                deleteButton.setText("❌ Удалить");
+                deleteButton.setCallbackData("delete_" + task.getId());
+
+                row.add(deleteButton);
+                rows.add(row);
+
+                // Отправляем каждую задачу отдельным сообщением с кнопкой
+                SendMessage message = new SendMessage();
+                message.setChatId(chatId.toString());
+                message.setText(taskText);
+
+                keyboardMarkup.setKeyboard(rows);
+                message.setReplyMarkup(keyboardMarkup);
+
+                try {
+                    execute(message);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
             }
 
-            // Добавляем подсказку по управлению
-            response.append("Используйте /delete [ID] для удаления");
-
-            sendMessage(chatId, response.toString());
-
         } catch (Exception e) {
-            sendMessage(chatId, "❌ Ошибка при получении задач: " + e.getMessage());
-            // Логирование ошибки
-            e.printStackTrace();
+            sendMessage(chatId, "Ошибка: " + e.getMessage());
+        }
+    }
+
+    private void deleteTaskWithConfirmation(Long chatId, Long taskId, Integer messageId) {
+        try {
+            boolean isDeleted = taskService.deleteTaskByIdAndUserId(taskId, chatId);
+
+            if (isDeleted) {
+                // Удаляем оригинальное сообщение с задачей
+                DeleteMessage deleteMessage = new DeleteMessage();
+                deleteMessage.setChatId(chatId.toString());
+                deleteMessage.setMessageId(messageId);
+                execute(deleteMessage);
+
+                // Отправляем подтверждение
+                sendMessage(chatId, "Задача успешно удалена ✅");
+            } else {
+                sendMessage(chatId, "❌ Ошибка удаления: задача не найдена");
+            }
+        } catch (Exception e) {
+            sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
         }
     }
 

@@ -31,16 +31,20 @@ public class TaskService {
     public Task addTask(Task task) {
         return taskRepository.save(task);
     }
+//    @Transactional
+//    public boolean deleteTaskByIdAndUserId(Long taskId, Long userId) {
+//        Optional<Task> task = taskRepository.findById(taskId);
+//        if (task.isPresent() && task.get().getUserId().equals(userId)) {
+//            taskRepository.deleteById(taskId);x
+//            return true;
+//        }
+//        return false;
+//    }
+
+    @Transactional
     public boolean deleteTaskByIdAndUserId(Long taskId, Long userId) {
-        Optional<Task> task = taskRepository.findById(taskId);
-        if (task.isPresent() && task.get().getUserId().equals(userId)) {
-            taskRepository.deleteById(taskId);
-            return true;
-        }
-        return false;
+        return taskRepository.deleteByIdAndUserId(taskId, userId) > 0;
     }
-
-
 
 
 }
