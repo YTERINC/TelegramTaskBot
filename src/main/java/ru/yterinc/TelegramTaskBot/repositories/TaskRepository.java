@@ -10,4 +10,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Modifying
     @Query("DELETE FROM Task t WHERE t.id = :taskId AND t.userId = :userId")
     int deleteByIdAndUserId(@Param("taskId") Long taskId, @Param("userId") Long userId);
+
+    Task findByIdAndUserId(Long id, Long userId);
 }

@@ -7,7 +7,6 @@ import ru.yterinc.TelegramTaskBot.models.Task;
 import ru.yterinc.TelegramTaskBot.repositories.TaskRepository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
@@ -44,6 +43,18 @@ public class TaskService {
     @Transactional
     public boolean deleteTaskByIdAndUserId(Long taskId, Long userId) {
         return taskRepository.deleteByIdAndUserId(taskId, userId) > 0;
+    }
+//TODO
+
+    @Transactional
+    public boolean completeTask(Long taskId, Long userId) {
+        Task task = taskRepository.findByIdAndUserId(taskId, userId);
+        if (task != null && !task.isCompleted()) {
+            task.setCompleted(true);
+            taskRepository.save(task);
+            return true;
+        }
+        return false;
     }
 
 

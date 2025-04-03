@@ -38,7 +38,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<BotCommand> listOfCommands = new ArrayList<>();
         listOfCommands.add(new BotCommand("/start", "Помощь"));
         listOfCommands.add(new BotCommand("/add", "Добавить задачу"));
-        listOfCommands.add(new BotCommand("/list", "Список задач"));
+        listOfCommands.add(new BotCommand("/list", "Список активных задач"));
+        listOfCommands.add(new BotCommand("/list all", "Список всех задач"));
         try {
             this.execute(new SetMyCommands(listOfCommands, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e) {
@@ -89,7 +90,10 @@ public class TelegramBot extends TelegramLongPollingBot {
                 startAddTaskProcess(chatId);
                 break;
             case "/list":
-                listTasks(chatId);
+                listTasks(chatId, false);
+                break;
+            case "/list all":
+                listTasks(chatId, true);
                 break;
             default:
                 sendMessage(chatId, "Неизвестная команда");
@@ -99,11 +103,18 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void handleCallback(CallbackQuery callbackQuery) {
         Long chatId = callbackQuery.getMessage().getChatId();
         String data = callbackQuery.getData();
-
+        // Проверка нажатия кнопки "удалить"
         if (data.startsWith("delete_")) {
             long taskId = Long.parseLong(data.split("_")[1]);
             deleteTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
         }
+
+        // Проверка нажатия кнопки "завершить"
+        if (data.startsWith("complete_")) {
+            long taskId = Long.parseLong(data.split("_")[1]);
+            completeTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
+        }
+
     }
 
     private void handleDeleteCommand(Long chatId, String commandText) {
@@ -189,40 +200,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         tempTasks.remove(chatId);
     }
 
-    //    private void listTasks(Long chatId) {
-//        try {
-//            // Получаем задачи только текущего пользователя
-//            List<Task> userTasks = taskService.findAll(chatId);
-//
-//            if (userTasks.isEmpty()) {
-//                sendMessage(chatId, "Список задач пуст.");
-//                return;
-//            }
-//
-//            // Формируем красивое текстовое представление
-//            StringBuilder response = new StringBuilder("📝 Ваши задачи:\n\n");
-//            for (Task task : userTasks) {
-//                response.append(String.format(
-//                        "🆔 ID: %d\n📌 Название: %s\n📄 Описание: %s\n✅ Статус: %s\n\n",
-//                        task.getId(),
-//                        task.getTitle(),
-//                        task.getDescription(),
-//                        task.isCompleted() ? "Завершено" : "Активно"
-//                ));
-//            }
-//
-//            // Добавляем подсказку по управлению
-//            response.append("Используйте /delete [ID] для удаления");
-//
-//            sendMessage(chatId, response.toString());
-//
-//        } catch (Exception e) {
-//            sendMessage(chatId, "❌ Ошибка при получении задач: " + e.getMessage());
-//            // Логирование ошибки
-//            e.printStackTrace();
-//        }
-//    }
-    private void listTasks(Long chatId) {
+    private void listTasks(Long chatId, boolean allTasks) {
         try {
             List<Task> userTasks = taskService.findAll(chatId);
 
@@ -231,14 +209,14 @@ public class TelegramBot extends TelegramLongPollingBot {
                 return;
             }
 
-
-
+//TODO
             for (Task task : userTasks) {
+
                 // Создаем строку с текстом задачи и кнопкой
                 InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
                 List<List<InlineKeyboardButton>> rows = new ArrayList<>();
                 List<InlineKeyboardButton> row = new ArrayList<>();
-
+                rows.add(row);
                 // Текст задачи
                 String taskText = String.format(
                         "🆔 ID: %d\n📌 Название: %s\n📄 Описание: %s\n✅ Статус: %s\n\n",
@@ -252,9 +230,14 @@ public class TelegramBot extends TelegramLongPollingBot {
                 InlineKeyboardButton deleteButton = new InlineKeyboardButton();
                 deleteButton.setText("❌ Удалить");
                 deleteButton.setCallbackData("delete_" + task.getId());
-
                 row.add(deleteButton);
-                rows.add(row);
+
+                // Кнопка для завершения задачи
+                InlineKeyboardButton completeButton = new InlineKeyboardButton();
+                completeButton.setText("✅ Завершить");
+                completeButton.setCallbackData("complete_" + task.getId());
+                row.add(completeButton);
+
 
                 // Отправляем каждую задачу отдельным сообщением с кнопкой
                 SendMessage message = new SendMessage();
@@ -263,9 +246,14 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                 keyboardMarkup.setKeyboard(rows);
                 message.setReplyMarkup(keyboardMarkup);
-
                 try {
-                    execute(message);
+                    if (allTasks)
+                        execute(message);
+                    else if (!task.isCompleted()) {
+                        execute(message);
+                    }
+
+
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
@@ -296,6 +284,29 @@ public class TelegramBot extends TelegramLongPollingBot {
             sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
         }
     }
+
+    //TODO
+    private void completeTaskWithConfirmation(Long chatId, Long taskId, Integer messageId) {
+        try {
+
+            boolean isCompleted = taskService.completeTask(taskId, chatId);
+
+            if (isCompleted) {
+                DeleteMessage deleteMessage = new DeleteMessage();
+                deleteMessage.setChatId(chatId.toString());
+                deleteMessage.setMessageId(messageId);
+                execute(deleteMessage);
+
+                // Отправляем подтверждение
+                sendMessage(chatId, "Задача завершена ✅");
+            } else {
+                sendMessage(chatId, "❌ Ошибка завершения задачи");
+            }
+        } catch (Exception e) {
+            sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
+        }
+    }
+
 
     private void sendMessage(Long chatId, String text) {
         SendMessage message = new SendMessage();
