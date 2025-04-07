@@ -57,5 +57,16 @@ public class TaskService {
         return false;
     }
 
+    @Transactional
+    public boolean inCompleteTask(Long taskId, Long userId) {
+        Task task = taskRepository.findByIdAndUserId(taskId, userId);
+        if (task != null && task.isCompleted()) {
+            task.setCompleted(false);
+            taskRepository.save(task);
+            return true;
+        }
+        return false;
+    }
+
 
 }

@@ -117,6 +117,12 @@ public class TelegramBot extends TelegramLongPollingBot {
             completeTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
         }
 
+        // Проверка нажатия кнопки
+        if (data.startsWith("incomplete_")) {
+            long taskId = Long.parseLong(data.split("_")[1]);
+            inCompleteTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
+        }
+
     }
 
     private void handleDeleteCommand(Long chatId, String commandText) {
@@ -208,17 +214,13 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void listTasks(Long chatId) {
         try {
             List<Task> userTasks = taskService.findAll(chatId);
-
             if (userTasks.isEmpty()) {
                 sendMessage(chatId, "Список всех задач пуст.");
                 return;
             }
-
-
             for (Task task : userTasks) {
                 createTaskMessage(task);
             }
-
         } catch (Exception e) {
             sendMessage(chatId, "Ошибка: " + e.getMessage());
         }
@@ -249,10 +251,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         InlineKeyboardButton completeButton = new InlineKeyboardButton();
         if (!task.isCompleted()) {
             completeButton.setText("✅ Завершить");
+            completeButton.setCallbackData("complete_" + task.getId());
         } else {
             completeButton.setText("Вернуть задачу");
+            completeButton.setCallbackData("incomplete_" + task.getId());
         }
-        completeButton.setCallbackData("complete_" + task.getId());
+
         row.add(completeButton);
 
 
@@ -309,6 +313,28 @@ public class TelegramBot extends TelegramLongPollingBot {
                 createTaskMessage(taskService.findById(taskId));
             } else {
                 sendMessage(chatId, "❌ Ошибка завершения задачи");
+            }
+        } catch (Exception e) {
+            sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
+        }
+    }
+
+    private void inCompleteTaskWithConfirmation(Long chatId, Long taskId, Integer messageId) {
+        try {
+
+            boolean inCompleted = taskService.inCompleteTask(taskId, chatId);
+
+            if (inCompleted) {
+                DeleteMessage deleteMessage = new DeleteMessage();
+                deleteMessage.setChatId(chatId.toString());
+                deleteMessage.setMessageId(messageId);
+                execute(deleteMessage);
+
+                // Отправляем подтверждение
+                sendMessage(chatId, "Задача возвращена в работу ✅"); // можно и убрать
+                createTaskMessage(taskService.findById(taskId));
+            } else {
+                sendMessage(chatId, "❌ Ошибка возвращения задачи");
             }
         } catch (Exception e) {
             sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
