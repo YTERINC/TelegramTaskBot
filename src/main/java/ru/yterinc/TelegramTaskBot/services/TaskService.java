@@ -19,7 +19,11 @@ public class TaskService {
     }
 
     public List<Task> findAll(Long chatId) {
-        return taskRepository.findAll();
+        return taskRepository.findByUserId(chatId);
+    }
+
+    public List<Task> findActiveAll(Long chatId) {
+        return taskRepository.findByUserIdAndCompletedIsFalse(chatId);
     }
 
     public Task findById(long id) {

@@ -92,7 +92,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 startAddTaskProcess(chatId);
                 break;
             case "/list":
-                listTasks(chatId); // TODO
+                listActiveTasks(chatId); // TODO
                 break;
             case "/list_all":
                 listTasks(chatId);
@@ -210,12 +210,26 @@ public class TelegramBot extends TelegramLongPollingBot {
         tempTasks.remove(chatId);
     }
 
-    //TODO надо отдельный метод только для активных задач
     private void listTasks(Long chatId) {
         try {
             List<Task> userTasks = taskService.findAll(chatId);
             if (userTasks.isEmpty()) {
                 sendMessage(chatId, "Список всех задач пуст.");
+                return;
+            }
+            for (Task task : userTasks) {
+                createTaskMessage(task);
+            }
+        } catch (Exception e) {
+            sendMessage(chatId, "Ошибка: " + e.getMessage());
+        }
+    }
+
+    private void listActiveTasks(Long chatId) {
+        try {
+            List<Task> userTasks = taskService.findActiveAll(chatId);
+            if (userTasks.isEmpty()) {
+                sendMessage(chatId, "Список активных задач пуст");
                 return;
             }
             for (Task task : userTasks) {
@@ -296,7 +310,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    //TODO надо написать отдельные методы для возврата задачи
     private void completeTaskWithConfirmation(Long chatId, Long taskId, Integer messageId) {
         try {
 
