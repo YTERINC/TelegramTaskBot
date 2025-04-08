@@ -125,7 +125,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     }
 
-    private void handleDeleteCommand(Long chatId, String commandText) {
+    private void handleDeleteCommand(Long chatId, String commandText) {  // метод в дальнейшем использоваться не будет,
+        // т.к. не удобный для пользователя
         try {
             String[] parts = commandText.split(" ");
             if (parts.length < 2) {
