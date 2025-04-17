@@ -1,5 +1,6 @@
 package ru.yterinc.TelegramTaskBot.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
@@ -15,6 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.yterinc.TelegramTaskBot.config.BotConfig;
 import ru.yterinc.TelegramTaskBot.models.Task;
+import ru.yterinc.TelegramTaskBot.models.UserStatesType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,10 +24,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
     private final TaskService taskService;
-    private final Map<Long, String> userStates = new HashMap<>();
+    private final Map<Long, UserStatesType> userStates = new HashMap<>();
     private final Map<Long, Task> tempTasks = new ConcurrentHashMap<>();
     final BotConfig config;
 
@@ -42,7 +45,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             this.execute(new SetMyCommands(listOfCommands, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e) {
-            e.printStackTrace(); // Или используйте логгер
+            log.error(e.getMessage());
         }
     }
 
@@ -70,26 +73,25 @@ public class TelegramBot extends TelegramLongPollingBot {
                 // Обработка основных команд
                 handleCommand(chatId, messageText);
             } catch (Exception e) {
-                sendMessage(chatId, "Ошибка: " + e.getMessage());
+                logError(e, chatId);
             }
         }
     }
 
     private void handleUserState(Long chatId, String text) {
-        String state = userStates.get(chatId);
+        UserStatesType state = userStates.get(chatId);
 
         if (text.startsWith("/cancel")) {
             cancelOperation(chatId);
-//            handleCommand(chatId, text);
             sendMessage(chatId, "Команда отменена");
             return;
         }
 
         switch (state) {
-            case "AWAITING_TITLE":
+            case UserStatesType.TITLE:
                 handleTitleInput(chatId, text);
                 break;
-            case "AWAITING_DESCRIPTION":
+            case UserStatesType.DESCRIPTION:
                 handleDescriptionInput(chatId, text);
                 break;
         }
@@ -120,24 +122,23 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void handleCallback(CallbackQuery callbackQuery) {
         Long chatId = callbackQuery.getMessage().getChatId();
         String data = callbackQuery.getData();
-        // Проверка нажатия кнопки "удалить"
+        // Проверка нажатия кнопки "Удалить"
         if (data.startsWith("delete_")) {
             long taskId = Long.parseLong(data.split("_")[1]);
-            deleteTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
+            deleteTask(chatId, taskId, callbackQuery.getMessage().getMessageId());
         }
 
-        // Проверка нажатия кнопки "завершить"
+        // Проверка нажатия кнопки "Завершить"
         if (data.startsWith("complete_")) {
             long taskId = Long.parseLong(data.split("_")[1]);
-            completeTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
+            completeTask(chatId, taskId, callbackQuery.getMessage().getMessageId());
         }
 
-        // Проверка нажатия кнопки
+        // Проверка нажатия кнопки "Вернуть задачу"
         if (data.startsWith("incomplete_")) {
             long taskId = Long.parseLong(data.split("_")[1]);
-            inCompleteTaskWithConfirmation(chatId, taskId, callbackQuery.getMessage().getMessageId());
+            cancelCompletionTask(chatId, taskId, callbackQuery.getMessage().getMessageId());
         }
-
     }
 
     private void sendStartMessage(Long chatId) {
@@ -152,7 +153,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void startAddTaskProcess(Long chatId) {
-        userStates.put(chatId, "AWAITING_TITLE");
+        userStates.put(chatId, UserStatesType.TITLE);
         tempTasks.put(chatId, new Task());
         sendMessage(chatId, "Введите название задачи:");
     }
@@ -160,7 +161,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void handleTitleInput(Long chatId, String title) {
         Task task = tempTasks.get(chatId);
         task.setTitle(title);
-        userStates.put(chatId, "AWAITING_DESCRIPTION");
+        userStates.put(chatId, UserStatesType.DESCRIPTION);
         sendMessage(chatId, "Теперь введите описание задачи:");
     }
 
@@ -173,6 +174,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         taskService.addTask(task);
 
         sendMessage(chatId, "Задача успешно создана!");
+        log.info("Task created, ID = {}", task.getId());
         // Очищаем временные данные
         cancelOperation(chatId);
     }
@@ -193,7 +195,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                 createTaskMessage(task);
             }
         } catch (Exception e) {
-            sendMessage(chatId, "Ошибка: " + e.getMessage());
+            logError(e, chatId);
+
         }
     }
 
@@ -208,7 +211,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 createTaskMessage(task);
             }
         } catch (Exception e) {
-            sendMessage(chatId, "Ошибка: " + e.getMessage());
+            logError(e, chatId);
         }
     }
 
@@ -219,7 +222,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<InlineKeyboardButton> row = new ArrayList<>();
         rows.add(row);
         // Текст задачи
-        String taskText = String.format("🆔 ID: %d\n📌 Название: %s\n📄 Описание: %s\n✅ Статус: %s\n\n", task.getId(), task.getTitle(), task.getDescription(), task.isStatus() ? "✅ Завершено" : "🔄 Активно");
+        String taskText = String.format("🆔 ID: %d\n📌 Название: %s\n📄 Описание: %s\n✅ Статус: %s\n\n",
+                task.getId(), task.getTitle(), task.getDescription(), task.isStatus() ? "✅ Завершено" : "🔄 Активно");
 
         // Кнопка удаления
         InlineKeyboardButton deleteButton = new InlineKeyboardButton();
@@ -227,7 +231,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         deleteButton.setCallbackData("delete_" + task.getId());
         row.add(deleteButton);
 
-        // Кнопка для завершения задачи
+        // Кнопки для завершения и возвращения задачи
         InlineKeyboardButton completeButton = new InlineKeyboardButton();
         if (!task.isStatus()) {
             completeButton.setText("✅ Завершить");
@@ -248,11 +252,11 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            e.printStackTrace();
+            logError(e, task.getUserId());
         }
     }
 
-    private void deleteTaskWithConfirmation(Long chatId, Long taskId, Integer messageId) {
+    private void deleteTask(Long chatId, Long taskId, Integer messageId) {
         try {
             boolean isDeleted = taskService.deleteTaskByIdAndUserId(taskId, chatId);
 
@@ -265,15 +269,16 @@ public class TelegramBot extends TelegramLongPollingBot {
 
                 // Отправляем подтверждение
                 sendMessage(chatId, "Задача успешно удалена ✅");
+                log.info("Task deleted, ID = {}", taskId);
             } else {
                 sendMessage(chatId, "❌ Ошибка удаления: задача не найдена");
             }
         } catch (Exception e) {
-            sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
+            logError(e, chatId);
         }
     }
 
-    private void completeTaskWithConfirmation(Long chatId, Long taskId, Integer messageId) {
+    private void completeTask(Long chatId, Long taskId, Integer messageId) {
         try {
             boolean isCompleted = taskService.completeTask(taskId, chatId);
 
@@ -290,11 +295,11 @@ public class TelegramBot extends TelegramLongPollingBot {
                 sendMessage(chatId, "❌ Ошибка завершения задачи");
             }
         } catch (Exception e) {
-            sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
+            logError(e, chatId);
         }
     }
 
-    private void inCompleteTaskWithConfirmation(Long chatId, Long taskId, Integer messageId) {
+    private void cancelCompletionTask(Long chatId, Long taskId, Integer messageId) {
         try {
             boolean inCompleted = taskService.inCompleteTask(taskId, chatId);
 
@@ -311,7 +316,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 sendMessage(chatId, "❌ Ошибка возвращения задачи");
             }
         } catch (Exception e) {
-            sendMessage(chatId, "🚫 Ошибка: " + e.getMessage());
+            logError(e, chatId);
         }
     }
 
@@ -322,7 +327,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            e.printStackTrace();
+            logError(e, chatId);
         }
     }
+
+    private void logError(Exception e, Long chatId) {
+        log.error("Error (chatId = {}): ", chatId, e);
+    }
+
 }
