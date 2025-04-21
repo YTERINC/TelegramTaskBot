@@ -222,7 +222,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<InlineKeyboardButton> row = new ArrayList<>();
         rows.add(row);
         // Текст задачи
-        String taskText = String.format("🆔 ID: %d\n📌 Название: %s\n📄 Описание: %s\n✅ Статус: %s\n\n",
+        String taskText = String.format("🆔 %d\n📌 %s\n📄 %s\n%s\n\n",
                 task.getId(), task.getTitle(), task.getDescription(), task.isStatus() ? "✅ Завершено" : "🔄 Активно");
 
         // Кнопка удаления
@@ -237,7 +237,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             completeButton.setText("✅ Завершить");
             completeButton.setCallbackData("complete_" + task.getId());
         } else {
-            completeButton.setText("Вернуть задачу");
+            completeButton.setText("⬆️ Вернуть задачу");
             completeButton.setCallbackData("incomplete_" + task.getId());
         }
 
