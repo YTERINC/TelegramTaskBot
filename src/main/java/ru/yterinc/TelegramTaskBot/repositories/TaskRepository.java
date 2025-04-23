@@ -10,13 +10,13 @@ import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
     @Modifying
-    @Query("DELETE FROM Task t WHERE t.id = :taskId AND t.userId = :userId")
+    @Query("DELETE FROM Task t WHERE t.id = :taskId AND t.chatId = :userId")
     int deleteByIdAndUserId(@Param("taskId") Long taskId, @Param("userId") Long userId);
 
-    Task findByIdAndUserId(Long id, Long userId);
+    Task findByIdAndChatId(Long id, Long userId);
 
-    List<Task> findByUserId(Long userId);
+    List<Task> findByChatId(Long userId);
 
-    List<Task> findByUserIdAndStatusIsFalse(Long userId);
+    List<Task> findByChatIdAndStatusIsFalse(Long userId);
 
 }
