@@ -62,5 +62,9 @@ public class TaskService {
         return false;
     }
 
+    @Transactional
+    public void saveTask(Task task) {
+        taskRepository.save(task);
+    }
 
 }

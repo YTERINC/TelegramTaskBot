@@ -3,6 +3,8 @@ package ru.yterinc.TelegramTaskBot.models;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 @AllArgsConstructor
@@ -25,4 +27,7 @@ public class Task {
 
     @Column(name = "status")
     private boolean status;
+
+    @Column(name = "deadline")
+    private LocalDateTime deadline;
 }
