@@ -19,11 +19,11 @@ public class TaskService {
     }
 
     public List<Task> findAll(Long chatId) {
-        return taskRepository.findByChatId(chatId);
+        return taskRepository.findByUserId(chatId);
     }
 
     public List<Task> findActiveAll(Long chatId) {
-        return taskRepository.findByChatIdAndStatusIsFalse(chatId);
+        return taskRepository.findByUserIdAndStatusIsFalse(chatId);
     }
 
     public Task findById(long id) {
@@ -42,7 +42,7 @@ public class TaskService {
 
     @Transactional
     public boolean completeTask(Long taskId, Long userId) {
-        Task task = taskRepository.findByIdAndChatId(taskId, userId);
+        Task task = taskRepository.findByIdAndUserId(taskId, userId);
         if (task != null && !task.isStatus()) {
             task.setStatus(true);
             taskRepository.save(task);
@@ -53,7 +53,7 @@ public class TaskService {
 
     @Transactional
     public boolean inCompleteTask(Long taskId, Long userId) {
-        Task task = taskRepository.findByIdAndChatId(taskId, userId);
+        Task task = taskRepository.findByIdAndUserId(taskId, userId);
         if (task != null && task.isStatus()) {
             task.setStatus(false);
             taskRepository.save(task);

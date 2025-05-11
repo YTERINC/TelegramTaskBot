@@ -22,8 +22,8 @@ public class Task {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "chatid")
-    private Long chatId;
+    @Column(name = "userid")
+    private Long userId;
 
     @Column(name = "status")
     private boolean status;
