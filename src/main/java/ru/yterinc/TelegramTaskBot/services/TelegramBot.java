@@ -168,7 +168,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private void handleDescriptionInput(Long chatId, String description) {
         Task task = tempTasks.get(chatId);
         task.setDescription(description);
-        task.setUserId(chatId);
+        task.setChatId(chatId);
         task.setStatus(false);
 
         taskService.addTask(task);
@@ -244,7 +244,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         row.add(completeButton);
         // Отправляем каждую задачу отдельным сообщением с кнопкой
         SendMessage message = new SendMessage();
-        message.setChatId(task.getUserId().toString());
+        message.setChatId(task.getChatId().toString());
         message.setText(taskText);
 
         keyboardMarkup.setKeyboard(rows);
@@ -252,7 +252,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            logError(e, task.getUserId());
+            logError(e, task.getChatId());
         }
     }
 

@@ -19,11 +19,11 @@ public class TaskService {
     }
 
     public List<Task> findAll(Long chatId) {
-        return taskRepository.findByUserId(chatId);
+        return taskRepository.findByChatId(chatId);
     }
 
     public List<Task> findActiveAll(Long chatId) {
-        return taskRepository.findByUserIdAndStatusIsFalse(chatId);
+        return taskRepository.findByChatIdAndStatusIsFalse(chatId);
     }
 
     public Task findById(long id) {
@@ -37,12 +37,12 @@ public class TaskService {
 
     @Transactional
     public boolean deleteTaskByIdAndUserId(Long taskId, Long userId) {
-        return taskRepository.deleteByIdAndUserId(taskId, userId) > 0;
+        return taskRepository.deleteByIdAndChatId(taskId, userId) > 0;
     }
 
     @Transactional
     public boolean completeTask(Long taskId, Long userId) {
-        Task task = taskRepository.findByIdAndUserId(taskId, userId);
+        Task task = taskRepository.findByIdAndChatId(taskId, userId);
         if (task != null && !task.isStatus()) {
             task.setStatus(true);
             taskRepository.save(task);
@@ -53,18 +53,13 @@ public class TaskService {
 
     @Transactional
     public boolean inCompleteTask(Long taskId, Long userId) {
-        Task task = taskRepository.findByIdAndUserId(taskId, userId);
+        Task task = taskRepository.findByIdAndChatId(taskId, userId);
         if (task != null && task.isStatus()) {
             task.setStatus(false);
             taskRepository.save(task);
             return true;
         }
         return false;
-    }
-
-    @Transactional
-    public void saveTask(Task task) {
-        taskRepository.save(task);
     }
 
 }

@@ -3,7 +3,6 @@ package ru.yterinc.TelegramTaskBot.models;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
 
 @Entity
 @Data
@@ -22,12 +21,9 @@ public class Task {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "userid")
-    private Long userId;
+    @Column(name = "chatid")
+    private Long chatId;
 
     @Column(name = "status")
     private boolean status;
-
-    @Column(name = "deadline")
-    private LocalDateTime deadline;
 }
