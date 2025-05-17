@@ -18,10 +18,7 @@ import ru.yterinc.TelegramTaskBot.config.BotConfig;
 import ru.yterinc.TelegramTaskBot.models.Task;
 import ru.yterinc.TelegramTaskBot.models.UserStatesType;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -31,6 +28,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final Map<Long, UserStatesType> userStates = new HashMap<>();
     private final Map<Long, Task> tempTasks = new ConcurrentHashMap<>();
     final BotConfig config;
+    private static final String EMPTY = "empty";
 
     public TelegramBot(TaskService taskService, BotConfig config) {
         super(config.getToken());
@@ -162,11 +160,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         Task task = tempTasks.get(chatId);
         task.setTitle(title);
         userStates.put(chatId, UserStatesType.DESCRIPTION);
-        sendMessage(chatId, "Теперь введите описание задачи:");
+        sendMessage(chatId, "Введите описание или поставьте любой символ для задачи без описания:");
     }
 
     private void handleDescriptionInput(Long chatId, String description) {
         Task task = tempTasks.get(chatId);
+        if (description.getBytes().length < 3) description = EMPTY;
         task.setDescription(description);
         task.setChatId(chatId);
         task.setStatus(false);
@@ -221,9 +220,16 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         List<InlineKeyboardButton> row = new ArrayList<>();
         rows.add(row);
-        // Текст задачи
-        String taskText = String.format("🆔 %d\n📌 %s\n📄 %s\n%s\n\n",
-                task.getId(), task.getTitle(), task.getDescription(), task.isStatus() ? "✅ Завершено" : "🔄 Активно");
+        // Текст задачи с условием
+        String description = task.getDescription();
+        String taskText;
+        if (Objects.equals(description, EMPTY)) {
+            taskText = String.format("📌 %s\n%s\n\n",
+                    task.getTitle(), task.isStatus() ? "✅ Завершено" : "🔄 Активно");
+        } else {
+            taskText = String.format("📌 %s\n📄 %s\n%s\n\n",
+                    task.getTitle(), description, task.isStatus() ? "✅ Завершено" : "🔄 Активно");
+        }
 
         // Кнопка удаления
         InlineKeyboardButton deleteButton = new InlineKeyboardButton();
