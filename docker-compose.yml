@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgresql:
+    container_name: postgresql_ttbot
+    image: postgres:alpine3.20  # Используем легковесный Alpine-образ
+    environment:
+      POSTGRES_DB: "ttbot_db"     # Название создаваемой БД
+      POSTGRES_USER: "${DB_USER}"     # Суперпользователь БД
+      POSTGRES_PASSWORD: "${DB_PASS}"      # Пароль суперпользователя
+    ports:
+      - "5434:5432"  # Пробрасываем порт 5432 контейнера → 5434 на хосте
+    restart: always  # Автоматический перезапуск при падении
+    volumes:
+      - db-data-ttbot:/var/lib/postgresql/data  # Постоянное хранение данных
+    healthcheck:  # Проверка готовности БД
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    container_name: ttbot
+    build: .  # Собираем образ из Dockerfile в текущей директории
+    environment:
+      # Конфигурация Spring DataSource
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql/ttbot_db
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}    # Из .env
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASS}   # Из .env
+
+      # Данные для Telegram API (берутся из .env файла)
+      - BOT_NAME=${BOT_NAME}
+      - BOT_TOKEN=${BOT_TOKEN}
+
+      # Дополнительные настройки
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_LIQUIBASE_ENABLED=true
+    depends_on:
+      postgresql:
+        condition: service_healthy  # Ждем готовности БД
+    restart: always  # Автоматический перезапуск
+
+volumes:
+  db-data-ttbot:  # Именованный том для хранения данных БД
