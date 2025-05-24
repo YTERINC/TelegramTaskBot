@@ -1,12 +1,10 @@
-# Сборка приложения
-FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
+FROM maven:3.9.9-amazoncorretto-17-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 RUN mvn package -DskipTests
 
-# Запуск приложения
-FROM eclipse-temurin:17-jre-alpine
+FROM openjdk:17.0.2-jdk-oracle
 WORKDIR /app
-COPY --from=builder /app/target/TelegramTaskBot-0.0.1-SNAPSHOT.jar ./app.jar
+COPY --from=builder /app/target/TelegramTaskBot-*.jar ./app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
