@@ -86,10 +86,10 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
 
         switch (state) {
-            case UserStatesType.TITLE:
+            case TITLE:
                 handleTitleInput(chatId, text);
                 break;
-            case UserStatesType.DESCRIPTION:
+            case DESCRIPTION:
                 handleDescriptionInput(chatId, text);
                 break;
         }
