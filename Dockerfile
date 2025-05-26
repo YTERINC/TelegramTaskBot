@@ -1,4 +1,4 @@
-FROM maven:3.9.9-amazoncorretto-17-debian AS builder
+FROM maven:3-eclipse-temurin-17 AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
