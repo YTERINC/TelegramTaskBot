@@ -11,12 +11,6 @@ services:
     restart: always  # Автоматический перезапуск при падении
     volumes:
       - db-data-ttbot:/var/lib/postgresql/data  # Постоянное хранение данных
-    healthcheck:  # Проверка готовности БД
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   app:
     container_name: ttbot
     build: .  # Собираем образ из Dockerfile в текущей директории
@@ -35,8 +29,7 @@ services:
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_LIQUIBASE_ENABLED=true
     depends_on:
-      postgresql:
-        condition: service_healthy  # Ждем готовности БД
+      -  postgresql
     restart: always  # Автоматический перезапуск
 
 volumes:
