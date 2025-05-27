@@ -9,7 +9,7 @@
 - ПО установлено на одноплатном компьютере Raspberry PI и доступно из сети Интернет.<br>
 <br>
 Посмотреть на работу приложения можно по ссылке:<br>
-<a href=@tg_user_task_bot>@tg_user_task_bot</a>
+<a href=https://t.me/tg_user_task_bot>@tg_user_task_bot</a>
 <br>
 <br>
 <b>Инструкция по работе:</b> <br>
